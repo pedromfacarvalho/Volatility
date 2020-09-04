@@ -2,7 +2,8 @@
 # Objective : TODO
 # Created by: pedro
 # Created on: 03/09/20
-pacman::p_load(quantmod, rugarch, rmgarch,coinmarketcapr,xts, tidyverse, ggthemes, gridExtra, tseries)
+pacman::p_load(forecast,quantmod, rugarch, rmgarch,coinmarketcapr,xts, tidyverse, ggthemes,
+               gridExtra, tseries, lmtest, FinTS)
 
 DJI <- getSymbols("DJI", src = "yahoo", from = "2002-01-01", auto.assign = FALSE)
 DJI_adj <- DJI$DJI.Adjusted
@@ -26,7 +27,14 @@ ret_BTC <- dailyReturn(BTC_adj, type = "log")
 ret_ETH <- dailyReturn(ETH_adj, type = "log")
 ret_XRP <- dailyReturn(XRP_adj, type = "log")
 
+
+
+
 rDJI_rBTC <- merge(ret_DJI, ret_BTC, join = "inner")
+
+
+
+
 
 uspec.n = multispec(replicate(2, ugarchspec(mean.model = list(armaOrder = c(1,1)))))
 multf = multifit(uspec.n, rDJI_rBTC)
