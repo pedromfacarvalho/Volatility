@@ -1,7 +1,4 @@
-# Title     : TODO
-# Objective : TODO
-# Created by: pedro
-# Created on: 03/09/20
+
 pacman::p_load(forecast,quantmod, rugarch, rmgarch,coinmarketcapr,xts, tidyverse, ggthemes,
                gridExtra, tseries, lmtest, FinTS)
 
