@@ -5,7 +5,9 @@
 
 
 pacman::p_load(forecast,quantmod, rugarch, rmgarch,coinmarketcapr,xts, tidyverse, ggthemes,
-               gridExtra, tseries, lmtest, FinTS)
+               gridExtra, tseries, lmtest, FinTS, mgarchBEKK)
+
+
 DJI <- getSymbols("DJI", src = "yahoo", from = "2002-01-01", auto.assign = FALSE)
 DJI_adj <- DJI$DJI.Adjusted
 #eGARCH, ARIMA (1,0,0) sstd
@@ -18,7 +20,7 @@ IXIC_adj <- IXIC$IXIC.Adjusted
 
 
 BTC <- getSymbols("BTC-USD", src = "yahoo", auto.assign = FALSE)
-BTC_adj <- BTC$`BTC-USD.Adjusted
+BTC_adj <- BTC$`BTC-USD.Adjusted`
 #sGARCH, ARIMA(1,0,0) sged`
 ETH <- getSymbols("ETH-USD", src = "yahoo", auto.assign = FALSE)
 ETH_adj <- ETH$`ETH-USD.Adjusted`
@@ -33,8 +35,10 @@ ret_IXIC <- dailyReturn(IXIC_adj, type = "log")
 ret_BTC <- dailyReturn(BTC_adj, type = "log")
 ret_ETH <- dailyReturn(ETH_adj, type = "log")
 ret_XRP <- dailyReturn(XRP_adj, type = "log")
+
 #determining qplots
-thing = ret_XRP
+thing = ret_IXIC
+jarque.bera.test(thing)
 qplot(x = 1:length(thing), y = thing, geom = "line") + geom_line(color = 'yellow') +
   labs( x = '', y = 'Returns', title =  "DOW JONES") + geom_hline(yintercept = mean(thing), color = 'red')
 
@@ -67,8 +71,8 @@ ArchTest(model_residuals - mean(model_residuals))
 
 
 
-model.spec = ugarchspec(variance.model = list(model = 'sGARCH' , garchOrder = c(1 , 1)) ,
-                        mean.model = list(armaOrder = c(1 , 0, 3), include.mean = TRUE), distribution.model = "sged")
+model.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(2 , 2, 0), include.mean = TRUE), distribution.model = "sged")
 
 (model.fit = ugarchfit(spec = model.spec , data = thing , solver = 'solnp'))
 

@@ -1,6 +1,6 @@
 
 pacman::p_load(forecast,quantmod, rugarch, rmgarch,coinmarketcapr,xts, tidyverse, ggthemes,
-               gridExtra, tseries, lmtest, FinTS)
+               gridExtra, tseries, lmtest, FinTS, mgarchBEKK)
 
 DJI <- getSymbols("DJI", src = "yahoo", from = "2002-01-01", auto.assign = FALSE)
 DJI_adj <- DJI$DJI.Adjusted
@@ -14,8 +14,8 @@ IXIC_adj <- IXIC$IXIC.Adjusted
 
 
 BTC <- getSymbols("BTC-USD", src = "yahoo", auto.assign = FALSE)
-BTC_adj <- BTC$`BTC-USD.Adjusted
-#sGARCH, ARIMA(1,0,0) sged`
+BTC_adj <- BTC$`BTC-USD.Adjusted`
+#sGARCH, ARIMA(1,0,0) sged
 ETH <- getSymbols("ETH-USD", src = "yahoo", auto.assign = FALSE)
 ETH_adj <- ETH$`ETH-USD.Adjusted`
 #eGARCH, ARIMA(1,1,1) sged
@@ -31,6 +31,7 @@ ret_ETH <- dailyReturn(ETH_adj, type = "log")
 ret_XRP <- dailyReturn(XRP_adj, type = "log")
 
 
+merge_total <- na.omit(merge(ret_DJI, ret_GSPC, ret_IXIC, ret_BTC, ret_ETH, ret_XRP))
 
 
 rDJI_rBTC <- merge(ret_DJI, ret_BTC, join = "inner")
@@ -46,14 +47,51 @@ rIXIC_rETH <- merge(ret_IXIC, ret_ETH, join = 'inner')
 rIXIC_rXRP <- merge(ret_IXIC, ret_XRP, join = 'inner')
 
 
+model.DJI.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(1 , 0, 0), include.mean = TRUE), distribution.model = "sstd")
+
+(model.DJI.fit = ugarchfit(spec = model.spec , data = ret_DJI , solver = 'solnp'))
+
+
+model.GSPC.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sstd")
+
+(model.GSPC.fit = ugarchfit(spec = model.spec , data = ret_GSPC , solver = 'solnp'))
+
+
+model.IXIC.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sstd")
+
+(model.IXIC.fit = ugarchfit(spec = model.spec , data = ret_IXIC , solver = 'solnp'))
+
+
+model.BTC.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(2 , 0, 2), include.mean = TRUE), distribution.model = "sged")
+
+(model.BTC.fit = ugarchfit(spec = model.spec , data = ret_BTC , solver = 'solnp'))
+
+model.ETH.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(2 , 2, 0), include.mean = TRUE), distribution.model = "sged")
+
+(model.ETH.fit = ugarchfit(spec = model.spec , data = ret_ETH , solver = 'solnp'))
+
+model.XRP.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(1 , 0, 3), include.mean = TRUE), distribution.model = "sged")
+
+(model.XRP.fit = ugarchfit(spec = model.spec , data = ret_BTC , solver = 'solnp'))
+
+#merg_est <- na.omit(merge(sigma(model.DJI.fit),sigma(model.GSPC.fit),sigma(model.IXIC.fit),sigma(model.BTC.fit),
+#                  sigma(model.ETH.fit),sigma(model.XRP.fit)))
+
+model.bekk <- BEKK(merge_total, c(1,1), verbose = TRUE)
 
 
 #DJI vs BTC
+uspec.n = multispec(list(ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(1 , 0, 0), include.mean = TRUE), distribution.model = "sstd"),
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(2 , 0, 2), include.mean = TRUE), distribution.model = "sged")))
 
-uspec.n = multispec(list(ugarchspec(variance.model = list(model = 'eGARCH', garchOrder = c(1,1)),
-                                     mean.model = list(armaOrder = c(1,0,0), include.mean = TRUE), distribution.model = 'sstd'),
-                         ugarchspec(variance.model = list(model = 'eGARCH', garchOrder = c(1,1)),
-                                     mean.model = list(armaOrder = c(1,0,0), include.mean = TRUE), distribution.model = 'sged')))
 (multf = multifit(uspec.n, rDJI_rBTC))
 spec1 = dccspec(uspec = uspec.n, dccOrder = c(1, 1), distribution = 'mvnorm')
 (fit1 = dccfit(spec1, data = rDJI_rBTC, fit.control = list(eval.se = TRUE), fit = multf))
@@ -67,13 +105,20 @@ cor_DJI_BTC <- as.xts(cor_DJI_BTC)  # imposes the xts time series format - usefu
 plot(cor_DJI_BTC)
 
 
+
+
+
+
+
+
 #DJI vs ETH
 
 
-uspec.n = multispec(list(ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = c(1,1)),
+uspec.n = multispec(list(ugarchspec(variance.model = list(model = 'eGARCH', garchOrder = c(1,1)),
                                      mean.model = list(armaOrder = c(1,0,0), include.mean = TRUE), distribution.model = 'sged'),
-                         ugarchspec(variance.model = list(model = 'eGARCH', garchOrder = c(1,1)),
-                                     mean.model = list(armaOrder = c(1,1,1), include.mean = TRUE), distribution.model = 'sged')))
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(2 , 2, 0), include.mean = TRUE), distribution.model = "sged")))
+
 (multf = multifit(uspec.n, rDJI_rETH))
 spec1 = dccspec(uspec = uspec.n, dccOrder = c(1, 1), distribution = 'mvnorm')
 (fit1 = dccfit(spec1, data = rDJI_rETH, fit.control = list(eval.se = TRUE), fit = multf))
@@ -105,3 +150,139 @@ cor_DJI_XRP <- as.xts(cor_DJI_XRP)  # imposes the xts time series format - usefu
 
 plot(cor_DJI_XRP)
 
+#GSPC vs BTC
+
+uspec.n = multispec(list(ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sstd"),
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(2 , 0, 2), include.mean = TRUE), distribution.model = "sged")))
+
+(multf = multifit(uspec.n, rGSPC_rBTC))
+spec1 = dccspec(uspec = uspec.n, dccOrder = c(1, 1), distribution = 'mvt')
+(fit1 = dccfit(spec1, data = rGSPC_rBTC, fit.control = list(eval.se = TRUE), fit = multf))
+cov1 = rcov(fit1)  # extracts the covariance matrix
+cor1 = rcor(fit1)  # extracts the correlation matrix
+dim(cor1)
+cor1[,,dim(cor1)[3]]
+cor_GSPC_BTC <- cor1[1,2,]   # leaving the last dimension empty implies that we want all elements
+cor_GSPC_BTC <- as.xts(cor_GSPC_BTC)  # imposes the xts time series format - useful for plotting
+
+plot(cor_GSPC_BTC)
+
+#GSPC vs ETH
+uspec.n = multispec(list(ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sstd"),
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(1 , 0, 3), include.mean = TRUE), distribution.model = "sged")))
+
+(multf = multifit(uspec.n, rGSPC_rETH))
+spec1 = dccspec(uspec = uspec.n, dccOrder = c(1, 1), distribution = 'mvt')
+(fit1 = dccfit(spec1, data = rGSPC_rETH, fit.control = list(eval.se = TRUE), fit = multf))
+cov1 = rcov(fit1)  # extracts the covariance matrix
+cor1 = rcor(fit1)  # extracts the correlation matrix
+dim(cor1)
+cor1[,,dim(cor1)[3]]
+cor_GSPC_ETH <- cor1[1,2,]   # leaving the last dimension empty implies that we want all elements
+cor_GSPC_ETH <- as.xts(cor_GSPC_ETH)  # imposes the xts time series format - useful for plotting
+
+plot(cor_GSPC_ETH)
+
+#GSPC vs XRP
+
+uspec.n = multispec(list(ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sged"),
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(1 , 0, 3), include.mean = TRUE), distribution.model = "sged")))
+
+(multf = multifit(uspec.n, rGSPC_rXRP))
+spec1 = dccspec(uspec = uspec.n, dccOrder = c(1, 1), distribution = 'mvnorm')
+(fit1 = dccfit(spec1, data = rGSPC_rXRP, fit.control = list(eval.se = TRUE), fit = multf))
+cov1 = rcov(fit1)  # extracts the covariance matrix
+cor1 = rcor(fit1)  # extracts the correlation matrix
+dim(cor1)
+cor1[,,dim(cor1)[3]]
+cor_GSPC_XRP <- cor1[1,2,]   # leaving the last dimension empty implies that we want all elements
+cor_GSPC_XRP <- as.xts(cor_GSPC_XRP)  # imposes the xts time series format - useful for plotting
+
+plot(cor_GSPC_XRP)
+
+#IXIC vs BTC
+uspec.n = multispec(list(ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sged"),
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(2 , 0, 2), include.mean = TRUE), distribution.model = "sged")))
+
+(multf = multifit(uspec.n, rIXIC_rBTC))
+spec1 = dccspec(uspec = uspec.n, dccOrder = c(1, 1), distribution = 'mvnorm')
+(fit1 = dccfit(spec1, data = rIXIC_rBTC, fit.control = list(eval.se = TRUE), fit = multf))
+cov1 = rcov(fit1)  # extracts the covariance matrix
+cor1 = rcor(fit1)  # extracts the correlation matrix
+dim(cor1)
+cor1[,,dim(cor1)[3]]
+cor_IXIC_BTC <- cor1[1,2,]   # leaving the last dimension empty implies that we want all elements
+cor_IXIC_BTC <- as.xts(cor_IXIC_BTC)  # imposes the xts time series format - useful for plotting
+
+plot(cor_IXIC_BTC)
+
+#IXIC vs ETH
+uspec.n = multispec(list(ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sstd"),
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(2 , 2 ,0), include.mean = TRUE), distribution.model = "sged")))
+
+(multf = multifit(uspec.n, rIXIC_rETH))
+spec1 = dccspec(uspec = uspec.n, dccOrder = c(1, 1), distribution = 'mvnorm')
+(fit1 = dccfit(spec1, data = rIXIC_rETH, fit.control = list(eval.se = TRUE), fit = multf))
+cov1 = rcov(fit1)  # extracts the covariance matrix
+cor1 = rcor(fit1)  # extracts the correlation matrix
+dim(cor1)
+cor1[,,dim(cor1)[3]]
+cor_IXIC_ETH <- cor1[1,2,]   # leaving the last dimension empty implies that we want all elements
+cor_IXIC_ETH <- as.xts(cor_IXIC_ETH)  # imposes the xts time series format - useful for plotting
+
+plot(cor_IXIC_ETH)
+#IXIC vs XRP
+uspec.n = multispec(list(ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sged"),
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(1 , 0, 3), include.mean = TRUE), distribution.model = "sged")))
+
+(multf = multifit(uspec.n, rIXIC_rXRP))
+spec1 = dccspec(uspec = uspec.n, dccOrder = c(1, 1), distribution = 'mvnorm')
+(fit1 = dccfit(spec1, data = rIXIC_rXRP, fit.control = list(eval.se = TRUE), fit = multf))
+cov1 = rcov(fit1)  # extracts the covariance matrix
+cor1 = rcor(fit1)  # extracts the correlation matrix
+dim(cor1)
+cor1[,,dim(cor1)[3]]
+cor_IXIC_XRP <- cor1[1,2,]   # leaving the last dimension empty implies that we want all elements
+cor_IXIC_XRP <- as.xts(cor_IXIC_XRP)  # imposes the xts time series format - useful for plotting
+
+plot(cor_IXIC_XRP)
+
+
+#ALL OFF THEM
+
+uspec.n = multispec(list(ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(1 , 0, 0), include.mean = TRUE), distribution.model = "sstd"),
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sstd"),
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sstd"),
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(2 , 0, 2), include.mean = TRUE), distribution.model = "sged"),
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(2 , 2, 0), include.mean = TRUE), distribution.model = "sged"),
+                         ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
+                        mean.model = list(armaOrder = c(1 , 0, 3), include.mean = TRUE), distribution.model = "sged")))
+
+(multf = multifit(uspec.n, merge_total))
+spec1 = dccspec(uspec = uspec.n, dccOrder = c(1, 1), distribution = 'mvnorm')
+(fit1 = dccfit(spec1, data = merge_total, fit.control = list(eval.se = TRUE), fit = multf))
+cov1 = rcov(fit1)  # extracts the covariance matrix
+cor1 = rcor(fit1)  # extracts the correlation matrix
+dim(cor1)
+cor1[,,dim(cor1)[3]]
+#cor_total <- cor1[1,2,]   # leaving the last dimension empty implies that we want all elements
+#cor_ <- as.xts(cor_IXIC_XRP)  # imposes the xts time series format - useful for plotting
+
+plot(cor_IXIC_XRP)
