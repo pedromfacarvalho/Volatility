@@ -1,6 +1,6 @@
 
 pacman::p_load(forecast,quantmod, rugarch, rmgarch,coinmarketcapr,xts, tidyverse, ggthemes,
-               gridExtra, tseries, lmtest, FinTS, mgarchBEKK, xtable)
+               gridExtra, tseries, lmtest, FinTS, mgarchBEKK, xtable, MTS)
 
 DJI <- getSymbols("DJI", src = "yahoo", from = "2002-01-01", auto.assign = FALSE)
 DJI_adj <- DJI$DJI.Adjusted
@@ -83,9 +83,32 @@ model.XRP.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder 
 #merg_est <- na.omit(merge(sigma(model.DJI.fit),sigma(model.GSPC.fit),sigma(model.IXIC.fit),sigma(model.BTC.fit),
 #                  sigma(model.ETH.fit),sigma(model.XRP.fit)))
 
-model.bekk <- BEKK(merge_total, c(1,1), verbose = TRUE)
+
+model.bekk1 <- BEKK(dados, order = c(1,1), verbose = TRUE)
+model.bekk <- BEKK11(rDJI_rBTC, include.mean = TRUE, cond.dist = "normal")
+
+###############################
+
+## Simulate a BEKK process:
+simulated <- simulateBEKK(2,400, c(1,1), params = NULL)
 
 
+## Prepare the input for the estimation process:
+simulated1 <- do.call(cbind, simulated$eps)
+
+## Estimate with default arguments:
+estimated <- BEKK(simulated1)
+
+
+
+
+## Show diagnostics:
+diagnoseBEKK(estimated)
+
+## Likewise, you can estimate an mGJR process:
+estimated2 <- mGJR(simulated[,1], simulated[,2])
+
+##########################################
 #DJI vs BTC
 uspec.n = multispec(list(ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
                         mean.model = list(armaOrder = c(1 , 0, 0), include.mean = TRUE), distribution.model = "sstd"),
