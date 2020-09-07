@@ -1,6 +1,6 @@
 
 pacman::p_load(forecast,quantmod, rugarch, rmgarch,coinmarketcapr,xts, tidyverse, ggthemes,
-               gridExtra, tseries, lmtest, FinTS, mgarchBEKK)
+               gridExtra, tseries, lmtest, FinTS, mgarchBEKK, xtable)
 
 DJI <- getSymbols("DJI", src = "yahoo", from = "2002-01-01", auto.assign = FALSE)
 DJI_adj <- DJI$DJI.Adjusted
@@ -32,7 +32,7 @@ ret_XRP <- dailyReturn(XRP_adj, type = "log")
 
 
 merge_total <- na.omit(merge(ret_DJI, ret_GSPC, ret_IXIC, ret_BTC, ret_ETH, ret_XRP))
-
+colnames(merge_total) <- c('DJI', 'GSPC', 'IXIC', 'BTC', 'ETH', 'XRP')
 
 rDJI_rBTC <- merge(ret_DJI, ret_BTC, join = "inner")
 rDJI_rETH <- merge(ret_DJI, ret_ETH, join = 'inner')
@@ -281,8 +281,9 @@ spec1 = dccspec(uspec = uspec.n, dccOrder = c(1, 1), distribution = 'mvnorm')
 cov1 = rcov(fit1)  # extracts the covariance matrix
 cor1 = rcor(fit1)  # extracts the correlation matrix
 dim(cor1)
-cor1[,,dim(cor1)[3]]
-#cor_total <- cor1[1,2,]   # leaving the last dimension empty implies that we want all elements
-#cor_ <- as.xts(cor_IXIC_XRP)  # imposes the xts time series format - useful for plotting
+#cor1[,,dim(cor1)[3]]
+#cor_total <- as.xts(cor_total)  # imposes the xts time series format - useful for plotting
 
-plot(cor_IXIC_XRP)
+DJI_BTC <- cor1[4,1,]
+DJI_BTC <- as.xts(DJI_BTC)
+plot(DJI_BTC, main = lab)
