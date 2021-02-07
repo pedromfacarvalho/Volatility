@@ -37,7 +37,7 @@ ret_ETH <- dailyReturn(ETH_adj, type = "log")
 ret_XRP <- dailyReturn(XRP_adj, type = "log")
 
 #determining qplots
-thing = ret_IXIC
+thing = ret_ETH
 jarque.bera.test(thing)
 qplot(x = 1:length(thing), y = thing, geom = "line") + geom_line(color = 'yellow') +
   labs( x = '', y = 'Returns', title =  "DOW JONES") + geom_hline(yintercept = mean(thing), color = 'red')

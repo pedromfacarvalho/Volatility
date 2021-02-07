@@ -1,6 +1,6 @@
 
 pacman::p_load(forecast,quantmod, rugarch, rmgarch,coinmarketcapr,xts, tidyverse, ggthemes,
-               gridExtra, tseries, lmtest, FinTS, mgarchBEKK, xtable, MTS)
+               gridExtra, tseries, lmtest, FinTS, mgarchBEKK, ccgarch, xtable, MTS)
 
 DJI <- getSymbols("DJI", src = "yahoo", from = "2002-01-01", auto.assign = FALSE)
 DJI_adj <- DJI$DJI.Adjusted
@@ -50,63 +50,63 @@ rIXIC_rXRP <- merge(ret_IXIC, ret_XRP, join = 'inner')
 model.DJI.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
                         mean.model = list(armaOrder = c(1 , 0, 0), include.mean = TRUE), distribution.model = "sstd")
 
-(model.DJI.fit = ugarchfit(spec = model.spec , data = ret_DJI , solver = 'solnp'))
+(model.DJI.fit = ugarchfit(spec = model.DJI.spec , data = ret_DJI , solver = 'solnp'))
 
 
 model.GSPC.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
                         mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sstd")
 
-(model.GSPC.fit = ugarchfit(spec = model.spec , data = ret_GSPC , solver = 'solnp'))
+(model.GSPC.fit = ugarchfit(spec = model.GSPC.spec , data = ret_GSPC , solver = 'solnp'))
 
 
 model.IXIC.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
                         mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sstd")
 
-(model.IXIC.fit = ugarchfit(spec = model.spec , data = ret_IXIC , solver = 'solnp'))
+(model.IXIC.fit = ugarchfit(spec = model.IXIC.spec , data = ret_IXIC , solver = 'solnp'))
 
 
 model.BTC.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
                         mean.model = list(armaOrder = c(2 , 0, 2), include.mean = TRUE), distribution.model = "sged")
 
-(model.BTC.fit = ugarchfit(spec = model.spec , data = ret_BTC , solver = 'solnp'))
+(model.BTC.fit = ugarchfit(spec = model.BTC.spec , data = ret_BTC , solver = 'solnp'))
 
 model.ETH.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
                         mean.model = list(armaOrder = c(2 , 2, 0), include.mean = TRUE), distribution.model = "sged")
 
-(model.ETH.fit = ugarchfit(spec = model.spec , data = ret_ETH , solver = 'solnp'))
+(model.ETH.fit = ugarchfit(spec = model.ETH.spec , data = ret_ETH , solver = 'solnp'))
 
 model.XRP.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
                         mean.model = list(armaOrder = c(1 , 0, 3), include.mean = TRUE), distribution.model = "sged")
 
-(model.XRP.fit = ugarchfit(spec = model.spec , data = ret_BTC , solver = 'solnp'))
+(model.XRP.fit = ugarchfit(spec = model.XRP.spec , data = ret_BTC , solver = 'solnp'))
 
 #merg_est <- na.omit(merge(sigma(model.DJI.fit),sigma(model.GSPC.fit),sigma(model.IXIC.fit),sigma(model.BTC.fit),
 #                  sigma(model.ETH.fit),sigma(model.XRP.fit)))
 
 
-model.bekk1 <- BEKK(dados, order = c(1,1), verbose = TRUE)
-model.bekk <- BEKK11(rDJI_rBTC, include.mean = TRUE, cond.dist = "normal")
+#model.bekk1 <- BEKK(dados, order = c(1,1), verbose = TRUE)
+#model.bekk <- BEKK11(rDJI_rBTC, include.mean = TRUE, cond.dist = "normal")
 
 ###############################
 
 ## Simulate a BEKK process:
-simulated <- simulateBEKK(2,400, c(1,1), params = NULL)
+#simulated <- simulateBEKK(2,400, c(1,1), params = NULL)
 
 
 ## Prepare the input for the estimation process:
-simulated1 <- do.call(cbind, simulated$eps)
+#simulated1 <- do.call(cbind, simulated$eps)
 
 ## Estimate with default arguments:
-estimated <- BEKK(simulated1)
+#stimated <- BEKK(simulated1)
 
 
 
 
 ## Show diagnostics:
-diagnoseBEKK(estimated)
+#diagnoseBEKK(estimated)
 
 ## Likewise, you can estimate an mGJR process:
-estimated2 <- mGJR(simulated[,1], simulated[,2])
+#estimated2 <- mGJR(simulated[,1], simulated[,2])
 
 ##########################################
 #DJI vs BTC
@@ -306,7 +306,21 @@ cor1 = rcor(fit1)  # extracts the correlation matrix
 dim(cor1)
 #cor1[,,dim(cor1)[3]]
 #cor_total <- as.xts(cor_total)  # imposes the xts time series format - useful for plotting
-
-DJI_BTC <- cor1[4,1,]
+DJI_BTC <- cov1[4,1,]
 DJI_BTC <- as.xts(DJI_BTC)
-plot(DJI_BTC, main = lab)
+plot(DJI_BTC)
+IXIC_ETH <- cor1[5,3,]
+IXIC_ETH <- as.xts(IXIC_ETH)
+plot(IXIC_ETH)
+GSPC_XRP <- cor1[2,6,]
+GSPC_XRP <- as.xts(GSPC_XRP)
+plot(GSPC_XRP)
+
+spec1 = cccspec(uspec = uspec.n, dccOrder = c(1, 1), distribution = 'mvnorm')
+(fit1 = cccfit(spec1, data = merge_total, fit.control = list(eval.se = TRUE), fit = multf))
+cov1 = rcov(fit1)  # extracts the covariance matrix
+cor1 = rcor(fit1)  # extracts the correlation matrix
+
+DJI_BTC <- cov1[4,1,]
+DJI_BTC <- as.xts(DJI_BTC)
+plot(DJI_BTC)
