@@ -10,6 +10,7 @@ from statsmodels.stats.diagnostic import het_arch
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import arch
+import datetime
 
 
 from pmdarima import auto_arima
@@ -76,7 +77,7 @@ for i in data.columns:
 #correcção de modelos
 
 
-modelos["BTC"] = ARIMA(data["BTC"].dropna(), order=(1,0,1)).fit()
+modelos["BTC"] = ARIMA(data["BTC"].dropna(), order=(1,0,0)).fit()
 print(modelos["BTC"].summary())
 modelos["ETH"] = ARIMA(data["XRP"].dropna(), order=(1,0,1)).fit()
 print(modelos["ETH"].summary())
@@ -84,6 +85,70 @@ modelos["XRP"] = ARIMA(data["XRP"].dropna(), order=(1,0,1)).fit()
 print(modelos["BTC"].summary())
 
 
+modelo_arma_DJI = ARIMA(data["DJI"].dropna(),order=(1,0,0)).fit()
+print(modelo_arma_DJI.summary())
+#constante não significativa mas diminuta, perfeito
+
+##DJI_BTC
+outer_var_BTC = pd.concat([data["DJI"], modelo_arma_DJI.resid], axis=1).fillna(0).shift(-1) #lag 2 debvido a causalidade
+outer_var_BTC.columns = ["DJI", "DJI resid"]
+data_model_BTC = pd.concat([outer_var_BTC,data["BTC"]],axis=1).dropna(how='any')
+modelo_arma_DJI_BTC = ARIMA(endog=data_model_BTC["BTC"],exog=data_model_BTC[["DJI","DJI resid"]], order=(1,0,1)).fit()
+print(modelo_arma_DJI_BTC.summary())
+
+dummy_DJI = pd.Series()
+dummy_DJI = data_model_BTC["DJI"].copy(deep=True)
+dummy_DJI[:'2020-03-20'] = 0
+dummy_resid=pd.Series()
+dummy_resid = data_model_BTC["DJI resid"].copy(deep=True)
+dummy_resid[:'2020-03-20'] = 0
+dummies = pd.concat([dummy_DJI,dummy_resid], axis = 1)
+dummies.columns = ["dummy_DJI", "dummy_resid"]
+dummy_data_model_BTC = pd.concat([data_model_BTC, dummies], axis = 1).dropna(how='any')
+modelo_arma_DJI_BTC_dummy = ARIMA(endog=dummy_data_model_BTC["BTC"],exog=dummy_data_model_BTC[["DJI","DJI resid","dummy_DJI","dummy_resid"]], order=(1,0,1)).fit()
+print(modelo_arma_DJI_BTC_dummy.summary())
+
+##DJI_ETH
+outer_var_BTC = pd.concat([data["ETH"], modelo_arma_DJI.resid], axis=1).fillna(0).shift(-3) #lag 2 debvido a causalidade
+outer_var_BTC.columns = ["DJI", "DJI resid"]
+data_model_BTC = pd.concat([outer_var_BTC,data["BTC"]],axis=1).dropna(how='any')
+modelo_arma_DJI_BTC = ARIMA(endog=data_model_BTC["BTC"],exog=data_model_BTC[["DJI","DJI resid"]], order=(1,0,1)).fit()
+print(modelo_arma_DJI_BTC.summary())
+
+dummy_DJI = pd.Series()
+dummy_DJI = data_model_BTC["DJI"].copy(deep=True)
+dummy_DJI[:'2020-03-20'] = 0
+dummy_resid=pd.Series()
+dummy_resid = data_model_BTC["DJI resid"].copy(deep=True)
+dummy_resid[:'2020-03-20'] = 0
+dummies = pd.concat([dummy_DJI,dummy_resid], axis = 1)
+dummies.columns = ["dummy_DJI", "dummy_resid"]
+dummy_data_model_BTC = pd.concat([data_model_BTC, dummies], axis = 1).dropna(how='any')
+modelo_arma_DJI_BTC_dummy = ARIMA(endog=dummy_data_model_BTC["BTC"],exog=dummy_data_model_BTC[["DJI","DJI resid","dummy_DJI","dummy_resid"]], order=(1,0,1)).fit()
+print(modelo_arma_DJI_BTC_dummy.summary())
+
+##DJI e XRP encontrar nova solução
 
 
+##GSPC BTC
+modelo_arma_DJI = ARIMA(data["GSPC"].dropna(),order=(1,0,0)).fit()
+print(modelo_arma_DJI.summary())
 
+outer_var_BTC = pd.concat([data["BTC"], modelo_arma_DJI.resid], axis=1).fillna(0).shift(-1) #lag 2 debvido a causalidade
+outer_var_BTC.columns = ["DJI", "DJI resid"]
+data_model_BTC = pd.concat([outer_var_BTC,data["BTC"]],axis=1).dropna(how='any')
+modelo_arma_DJI_BTC = ARIMA(endog=data_model_BTC["BTC"],exog=data_model_BTC[["DJI","DJI resid"]], order=(1,0,1)).fit()
+print(modelo_arma_DJI_BTC.summary())
+
+dummy_DJI = pd.Series()
+dummy_DJI = data_model_BTC["DJI"].copy(deep=True)
+dummy_DJI[:'2020-03-20'] = 0
+dummy_resid=pd.Series()
+dummy_resid = data_model_BTC["DJI resid"].copy(deep=True)
+dummy_resid[:'2020-03-20'] = 0
+dummies = pd.concat([dummy_DJI,dummy_resid], axis = 1)
+dummies.columns = ["dummy_DJI", "dummy_resid"]
+dummy_data_model_BTC = pd.concat([data_model_BTC, dummies], axis = 1).dropna(how='any')
+modelo_arma_DJI_BTC_dummy = ARIMA(endog=dummy_data_model_BTC["BTC"],exog=dummy_data_model_BTC[["DJI","DJI resid","dummy_DJI","dummy_resid"]], order=(1,0,1)).fit()
+print(modelo_arma_DJI_BTC_dummy.summary())
+arch.arch_model()

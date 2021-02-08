@@ -53,6 +53,15 @@ model.DJI.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder 
 (model.DJI.fit = ugarchfit(spec = model.DJI.spec , data = ret_DJI , solver = 'solnp'))
 
 
+
+
+
+
+
+
+
+
+
 model.GSPC.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder = c(1 , 1)) ,
                         mean.model = list(armaOrder = c(0 , 0, 1), include.mean = TRUE), distribution.model = "sstd")
 
