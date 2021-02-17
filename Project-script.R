@@ -1,4 +1,5 @@
 
+
 pacman::p_load(forecast,quantmod, rugarch, rmgarch,coinmarketcapr,xts, tidyverse, ggthemes,
                gridExtra, tseries, lmtest, FinTS, mgarchBEKK, ccgarch, xtable, MTS)
 
@@ -93,8 +94,14 @@ model.XRP.spec = ugarchspec(variance.model = list(model = 'eGARCH' , garchOrder 
 #                  sigma(model.ETH.fit),sigma(model.XRP.fit)))
 
 
-#model.bekk1 <- BEKK(dados, order = c(1,1), verbose = TRUE)
-#model.bekk <- BEKK11(rDJI_rBTC, include.mean = TRUE, cond.dist = "normal")
+
+
+
+
+
+
+model.bekk1 <- BEKK(rDJI_rXRP)
+model.bekk <- BEKK11(rDJI_rXRP, include.mean = TRUE, cond.dist = "normal")
 
 ###############################
 
