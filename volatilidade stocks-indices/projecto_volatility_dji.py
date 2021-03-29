@@ -133,7 +133,7 @@ indice_volatility_calc += modelo_res_lin.conditional_volatility
 import matplotlib.pyplot as plt
 def func(time,column):
     plt.plot(time)
-    plt.title(f"variance for {column}")
+    plt.title(f"variance ratio for {column}")
     plt.show()
 
 for i in conditional_volatilities_frame.columns:
