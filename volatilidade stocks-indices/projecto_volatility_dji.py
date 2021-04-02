@@ -33,15 +33,18 @@ data_price = pd.DataFrame(columns = ["AAPL", "MSFT", "V", "JPM", "JNJ", "WMT", "
 for i,val in enumerate(lista_data):
     data_price[data_price.columns[i]] = val['Close']
 
+data_price = data_price.fillna(method='ffill').fillna(method="bfill")
 data = np.log(data_price) - np.log(data_price.shift(1))
 
+#TEMOS DADOS DATA
+"""
 for i in data.columns:
     print(f"Jarque Bera for {i}")
     print(stats.jarque_bera(data[i].dropna()))
     print(f"Augmented Dickey-Fuller for {i}")
     print(adfuller(data[i].dropna()))
-
-
+"""
+#DETERMINAR MODELOS AIC
 modelos = dict()
 for i in data.columns:
 
@@ -66,12 +69,14 @@ for i in data.columns:
     # To print the summary
     print(modelos_AR[i].summary())
 """
+#VERIFICAR ARCH
 for i in data.columns:
     print(f"ARCHTest para resíduos de {i}")
     print(het_arch(modelos[i].arima_res_.resid,nlags=6))
     print("Time Series")
     print(het_arch(data[i].dropna(),nlags=6))
 
+#FAZER MODELOS GARCH
 modelos_garch = dict()
 for i in data.columns:
 
@@ -85,19 +90,33 @@ for i in data.columns:
     print(modelos_garch[i].summary())
 
 
+#JUNTAR RESIDUOS
+
+resid_frame = pd.DataFrame(columns = data.columns)
+conditional_volatilities_stocks_frame = pd.DataFrame(columns=data.columns)
+for i in data.columns:
+    resid_frame[i] = pd.Series(modelos[i].arima_res_.resid, index= data[i].dropna().index)
+    conditional_volatilities_stocks_frame = pd.Series(modelos_garch[i].conditional_volatility, index= data[i].dropna().index)
+
+
+
+#DADOS DO INDICE
 indice = yf.download("^DJI", start="2002-01-01",interval="1d", group_by='ticker', auto_adjust=True)
+indice = indice.fillna(method="ffill").fillna(method="bfill")
 indice_ret = np.log(indice["Close"]) - np.log(indice["Close"].shift(1))
 
-indice_modelo = auto_arima(indice_ret.dropna())
+
+indice_modelo = ARIMA(endog=indice_ret, exog=resid_frame, order=(1,0,0))
 print(indice_modelo.summary())
 indice_garch = arch.arch_model(indice_modelo.arima_res_.resid, vol = "GARCH", rescale=True).fit()
 print(indice_garch.summary())
 
-resid_series = []
-conditional_volatilities_stocks = []
-for i in data.columns:
-    resid_series.append(pd.Series(modelos[i].arima_res_.resid, index= data[i].dropna().index))
-    conditional_volatilities_stocks.append(pd.Series(modelos_garch[i].conditional_volatility, index= data[i].dropna().index))
+
+
+
+
+
+
 
 
 dados_para_reg = pd.DataFrame()
@@ -143,7 +162,7 @@ func(indice_volatility_calc, i)
 func(modelo_res_lin.conditional_volatility,i)
 correlations = pd.DataFrame(columns = conditional_volatilities_frame.columns)
 for j,i in enumerate(conditional_volatilities_frame.columns):
-    correlations[i] = (model.coef_[j]*np.sqrt(conditional_volatilities_frame[i].fillna(0)))/indice_volatility_calc
+    correlations[i] = (model.coef_[j]*np.sqrt(conditional_volatilities_frame[i]))/indice_volatility_calc
 
 for i in correlations.columns:
     func(correlations[i], i)
