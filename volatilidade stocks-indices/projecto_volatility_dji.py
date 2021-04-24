@@ -12,6 +12,8 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 import arch
 import datetime
 from pmdarima import auto_arima
+import matplotlib.pyplot as plt
+
 
 
 AAPL = yf.download("AAPL", start="2002-01-01",interval="1d", group_by='ticker', auto_adjust=True)
@@ -96,27 +98,86 @@ resid_frame = pd.DataFrame(columns = data.columns)
 conditional_volatilities_stocks_frame = pd.DataFrame(columns=data.columns)
 for i in data.columns:
     resid_frame[i] = pd.Series(modelos[i].arima_res_.resid, index= data[i].dropna().index)
-    conditional_volatilities_stocks_frame = pd.Series(modelos_garch[i].conditional_volatility, index= data[i].dropna().index)
+    conditional_volatilities_stocks_frame[i] = pd.Series(modelos_garch[i].conditional_volatility, index= data[i].dropna().index)
 
 
 
 #DADOS DO INDICE
 indice = yf.download("^DJI", start="2002-01-01",interval="1d", group_by='ticker', auto_adjust=True)
 indice = indice.fillna(method="ffill").fillna(method="bfill")
-indice_ret = np.log(indice["Close"]) - np.log(indice["Close"].shift(1))
+indice_ret = (np.log(indice["Close"]) - np.log(indice["Close"].shift(1))).dropna()
 
 
-indice_modelo = ARIMA(endog=indice_ret, exog=resid_frame, order=(1,0,0))
+indice_modelo = ARIMA(endog=indice_ret, exog=resid_frame, order=(1,0,0)).fit()
 print(indice_modelo.summary())
-indice_garch = arch.arch_model(indice_modelo.arima_res_.resid, vol = "GARCH", rescale=True).fit()
+indice_garch = arch.arch_model(indice_modelo.resid, vol = "GARCH", rescale=True).fit()
 print(indice_garch.summary())
+cond_var_index = indice_garch.conditional_volatility
+
+h_stocks = pd.Series(0,name="total_vol", index=resid_frame.index)
+for i in resid_frame.columns:
+    h_stocks = h_stocks + indice_modelo.params[i]**2*conditional_volatilities_stocks_frame[i]**2
+    print(f"{i} h_stocks {h_stocks}")
+h = h_stocks + cond_var_index**2
+
+spillovers = pd.DataFrame(columns=resid_frame.columns)
+for i in resid_frame.columns:
+    spillovers[i] = (indice_modelo.params[i]*conditional_volatilities_stocks_frame[i])/(h**0.5)
+
+for i in spillovers.columns:
+    plt.plot(spillovers[i])
+    plt.title(f"Variance ratio between {i} and DJI")
+    plt.show()
 
 
 
 
 
 
+import scipy.stats as st
+def get_best_distribution(data):
+    dist_names = ["norm", "exponweib", "weibull_max", "weibull_min", "pareto", "genextreme"]
+    dist_results = []
+    params = {}
+    for dist_name in dist_names:
+        dist = getattr(st, dist_name)
+        param = dist.fit(data)
 
+        params[dist_name] = param
+        # Applying the Kolmogorov-Smirnov test
+        D, p = st.kstest(data, dist_name, args=param)
+        print("p value for "+dist_name+" = "+str(p))
+        dist_results.append((dist_name, p))
+
+    # select the best fitted distribution
+    best_dist, best_p = (max(dist_results, key=lambda item: item[1]))
+    # store the name of the best fit and its p value
+
+    print("Best fitting distribution: "+str(best_dist))
+    print("Best p value: "+ str(best_p))
+    print("Parameters for the best fit: "+ str(params[best_dist]))
+
+    return best_dist, best_p, params[best_dist]
+
+for i in conditional_volatilities_stocks_frame.columns:
+    print(f"Distribution for {i}")
+    get_best_distribution(conditional_volatilities_stocks_frame[i])
+
+get_best_distribution(conditional_volatilities_stocks_frame["AAPL"])
+
+params = (-0.29121,1.60149, 0.37599)
+x = np.arange(conditional_volatilities_stocks_frame["AAPL"].min(),conditional_volatilities_stocks_frame["AAPL"].max(),0.001)
+rv = stats.exponweib(4.241635662242491, 0.8410328808185763, 1.0254363366567723, 0.42062685618103823)
+plt.hist(conditional_volatilities_stocks_frame["AAPL"],bins=100)
+plt.plot(x,rv.pdf(x))
+plt.axvline(rv.ppf(0.95), color = "r")
+plt.show()
+
+
+
+
+
+"""
 
 
 dados_para_reg = pd.DataFrame()
@@ -166,3 +227,5 @@ for j,i in enumerate(conditional_volatilities_frame.columns):
 
 for i in correlations.columns:
     func(correlations[i], i)
+    
+    """
