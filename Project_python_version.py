@@ -1,3 +1,4 @@
+
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -14,7 +15,8 @@ import datetime
 import bekk
 from sklearn.preprocessing import MinMaxScaler
 from models_and_graphs import models_charts
-
+from scipy.signal import detrend
+import matplotlib.pyplot as plt
 
 from pmdarima import auto_arima
 import matplotlib.pyplot as plt
@@ -190,7 +192,7 @@ ax2.plot(cond_var_DJI[detrended_data.index[0]:], 'r-')
 ax2.set_ylabel('y2', color='r')
 for tl in ax2.get_yticklabels():
     tl.set_color('r')
-plt.title("DJI variance and log(BTC) price")
+plt.title("DJI variance and detrended log(BTC) price")
 plt.show()
 
 

@@ -54,7 +54,7 @@ ret_HD <- dailyReturn(HD_adj, type = "log")
 ret_VZ <- dailyReturn(VZ_adj, type = "log")
 ret_INTC <- dailyReturn(INTC_adj, type = "log")
 
-data <- cbind(ret_AAPL, ret_MSFT, ret_V, ret_JPM, ret_JNJ, ret_WMT, ret_UNH, ret_PG, ret_DIS, ret_HD, ret_VZ, ret_INTC)
+data <- cbind(ret_AAPL, ret_MSFT, ret_V, ret_JPM, ret_JNJ, ret_WMT, ret_UNH, ret_PG, ret_DIS, ret_HD, ret_VZ, ret_INTC)*1000
 models_data <- vector("list", length(data))
 models <- function(data, stock_order, external = NULL) {
   model.index.spec <- ugarchspec(variance.model = list(model = 'sGARCH' , garchOrder = c(1 , 1)) ,
@@ -85,17 +85,15 @@ models_garch[11] <- models(data[,11], c(2,0,1))
 models_garch[12] <- models(data[,12], c(3,0,3))
 
 
-resid_vec <- matrix(nrow = 4861, ncol = 12)
+resid_vec <- matrix(nrow = length(ret_AAPL), ncol = 12)
 for(i in 1:12){
   resid_vec[,i] <- residuals(models_garch[[i]])
 }
 
 
 DJI <- na.locf(na.locf(getSymbols("DJI", src = "yahoo", from = "2002-01-01", auto.assign = FALSE)), fromLast = TRUE)
-DJI_adj <- xts(DJI$DJI.Adjusted)
+DJI_adj <- xts(DJI$DJI.Adjusted)*1000
 plot(DJI_adj)
-
-residuals
 
 ret_DJI <- dailyReturn(DJI_adj, type = "log")
 
@@ -105,20 +103,41 @@ model_DJI <- ARIMA(ret_DJI, order = c(1,0,0), xreg = resid_vec)
 model_DJI_garch <- models(ret_DJI, c(1,0,0), external = resid_vec)
 cond_var_DJI <- sigma(model_DJI_garch)
 
-sigma_vec <- matrix(nrow = 4861, ncol = 12)
-cond_var_sum <- matrix(0, nrow=4861, ncol = 1)
+resid_vec_with_index <- matrix(nrow = length(ret_AAPL), ncol = 13)
+resid_vec_with_index[,1:12] <- resid_vec
+resid_vec_with_index[,13] <- residuals(model_DJI_garch)
+
+sigma_vec <- matrix(nrow = length(ret_AAPL), ncol = 12)
+cond_var_sum <- matrix(0, nrow=length(ret_AAPL), ncol = 1)
+
+sigma_vec_total <- matrix(nrow = length(ret_AAPL), ncol = 13)
+
 for(i in 1:12){
   sigma_vec[,i] <- sigma(models_garch[[i]])
   cond_var_sum <- cond_var_sum + sigma_vec[,i]^2
+  sigma_vec_total[,i] <- sigma_vec[,i]^2
 }
 
+sigma_vec_total[,13] <- cond_var_DJI^2
+
+phi <- diag(13)
+for(i in 1:12){
+  phi[13,i] <- coef(model_DJI_garch)[i+2]
+}
+
+H <- array(NA,dim=c(13,13,length(ret_AAPL)))
+
+for(i in seq(1:length(ret_AAPL))){
+  H[,,i] <- phi*sigma_vec_total[i,]*t(phi)
+}
+H_scaled <- H*100000
+t.test(cbind(H_scaled[2,1,]), mu = 0)
 
 h <- sqrt(cond_var_sum + cond_var_DJI^2)
-spillovers <- matrix(nrow = 4861, ncol = 12)
+spillovers <- matrix(nrow = length(ret_AAPL), ncol = 12)
 for(i in 1:12){
   spillovers[,i] <- (coef(model_DJI_garch)[i+2]*sigma_vec[,i])/h
 }
 
 plot(spillovers[,4], type = "l")
 
-["AAPL", "MSFT", "V", "JPM", "JNJ", "WMT", "UNH", "PG", "DIS", "HD", "VZ", "INTC"]
