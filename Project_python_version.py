@@ -14,7 +14,7 @@ import arch
 import datetime
 import bekk
 from sklearn.preprocessing import MinMaxScaler
-from models_and_graphs import models_charts
+#from models_and_graphs import models_charts
 from scipy.signal import detrend
 import matplotlib.pyplot as plt
 
@@ -183,16 +183,15 @@ plt.show()
 detrended_data = pd.Series(detrend(np.log(data_price["BTC"]).dropna()),index=data_price["BTC"].dropna().index)
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-ax1.plot(detrended_data)
+ax1.plot(detrended_data[len(detrended_data)-100:])
 ax1.set_ylabel('y1')
 
 ax2 = ax1.twinx()
-ax2.plot(cond_var_DJI[detrended_data.index[0]:], 'r-')
+ax2.plot(cond_var_DJI[len(cond_var_DJI)-100:], 'r-')
 #ax2.plot(variance_ratio_DJI_BTC, 'r-')
 ax2.set_ylabel('y2', color='r')
 for tl in ax2.get_yticklabels():
     tl.set_color('r')
-plt.title("DJI variance and detrended log(BTC) price")
 plt.show()
 
 

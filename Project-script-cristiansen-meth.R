@@ -7,37 +7,31 @@
 pacman::p_load(forecast,quantmod, tidyquant, rugarch, rmgarch,coinmarketcapr,xts, tidyverse, ggthemes,
                gridExtra, tseries, lmtest, FinTS, mgarchBEKK, ccgarch, xtable, MTS, plm,zoo)
 
+# dados com back e forward fill
 DJI <- na.locf(na.locf(getSymbols("DJI", src = "yahoo", from = "2002-01-01", auto.assign = FALSE)), fromLast = TRUE)
 DJI_adj <- xts(DJI$DJI.Adjusted)
 plot(DJI_adj)
-#eGARCH, ARIMA (1,0,0) sstd
 GSPC <- na.locf(na.locf(getSymbols("^GSPC", src = "yahoo", from = "2002-01-01", auto.assign = FALSE)), fromLast = TRUE)
 GSPC_adj <- xts(GSPC$GSPC.Adjusted)
 plot(GSPC_adj)
-#eGARCH, ARIMA (0,0,1) sstd
 IXIC <- na.locf(na.locf(getSymbols("^IXIC", src = "yahoo", from = "2002-01-01", auto.assign = FALSE)), fromLast = TRUE)
 IXIC_adj <- IXIC$IXIC.Adjusted
 plot(IXIC_adj)
-#eGARCH,ARIMA (0,0,1) sstd
-
 
 BTC <- na.locf(na.locf(getSymbols("BTC-USD", src = "yahoo", auto.assign = FALSE)), fromLast = TRUE)
 BTC_adj <- xts(BTC$`BTC-USD.Adjusted`)
 plot(BTC_adj)
-#sGARCH, ARIMA(1,0,0) sged
 ETH <- na.locf(na.locf(getSymbols("ETH-USD", src = "yahoo", auto.assign = FALSE)), fromLast = TRUE)
 ETH_adj <- ETH$`ETH-USD.Adjusted`
 plot(ETH_adj)
-#eGARCH, ARIMA(1,1,1) sged
 XRP <- na.locf(na.locf(getSymbols("XRP-USD", src = "yahoo", auto.assign = FALSE)), fromLast = TRUE)
 XRP_adj <- XRP$`XRP-USD.Adjusted`
 plot(XRP_adj)
-#sGARCH, ARIMA (1,0,3) sged
 XMR <- na.locf(na.locf(getSymbols("XMR-USD", src = "yahoo", auto.assign = FALSE)), fromLast = TRUE)
 XMR_adj <- XMR$`XMR-USD.Adjusted`
 plot(XMR_adj)
 
-
+# returns
 ret_DJI <- dailyReturn(DJI_adj, type = "log")
 ret_GSPC <- dailyReturn(GSPC_adj, type = "log")
 ret_IXIC <- dailyReturn(IXIC_adj, type = "log")
@@ -46,9 +40,9 @@ ret_ETH <- dailyReturn(ETH_adj, type = "log")
 ret_XRP <- dailyReturn(XRP_adj, type = "log")
 ret_XMR <- dailyReturn(XMR_adj, type = "log")
 
-#merge_total <- na.omit(merge(ret_DJI, ret_GSPC, ret_IXIC, ret_BTC, ret_ETH, ret_XRP))
 colnames(merge_total) <- c('DJI', 'GSPC', 'IXIC', 'BTC', 'ETH', 'XRP')
 
+# criação de pares
 rDJI_rBTC <- na.locf(na.locf(merge(ret_DJI, ret_BTC, join = "right")), fromLast = TRUE)
 rDJI_rETH <- na.locf(na.locf(merge(ret_DJI, ret_ETH, join = 'right')), fromLast = TRUE)
 rDJI_rXRP <- na.locf(na.locf(merge(ret_DJI, ret_XRP, join = 'right')), fromLast = TRUE)
@@ -64,10 +58,11 @@ rIXIC_rETH <- merge(ret_IXIC, ret_ETH, join = 'right')
 rIXIC_rXRP <- merge(ret_IXIC, ret_XRP, join = 'right')
 rIXIC_rXMR <- merge(ret_IXIC, ret_XMR, join = 'right')
 
+# testes à normalidade
 jarque.bera.test(ret_XMR)
 adf.test(ret_XMR)
 
-
+# testes de causalidade
 grangertest(daily.returns ~ daily.returns.1, order = 4, data = rDJI_rBTC) #2
 grangertest(daily.returns ~ daily.returns.1, order = 4, data = rDJI_rETH) #2 e 4
 grangertest(daily.returns ~ daily.returns.1, order = 2, data = rDJI_rXRP) #2 é o melhor 0.1871 não causal, encontrar alternativa
@@ -81,26 +76,26 @@ grangertest(daily.returns ~ daily.returns.1, order = 2, data = rIXIC_rETH) #2
 grangertest(daily.returns ~ daily.returns.1, order = 2, data = rIXIC_rXRP) #2 mas 6.57% significancia
 grangertest(daily.returns ~ daily.returns.1, order = 2, data = rIXIC_rXMR) #2 mas 6.21% significancia
 
-data <- rDJI_rBTC
-index_order <- c(1,0,0)
-crypto_order <- c(0,0,0)
-value_lagged <- 2
 
+# modelo ARMA-GARCH para os pares
 models_spillovers <- function(data, index_order, crypto_order, value_lagged) {
+  # modelo ARMA-GARCH para o indice
   model.index.spec = ugarchspec(variance.model = list(model = 'sGARCH' , garchOrder = c(1 , 1)) ,
                         mean.model = list(armaOrder = index_order, include.mean = TRUE), distribution.model = "sstd")
 
   (model.index.fit = ugarchfit(spec = model.index.spec , data = data$daily.returns, solver = 'hybrid'))
 
+  #junção dos dados com lag fornecido por granger
   index_data <- merge(data$daily.returns, residuals(model.index.fit))[0:(length(data$daily.returns)-value_lagged)]
-
   lagged <- data$daily.returns.1[(1+value_lagged):length(data$daily.returns.1)]
 
-
+  # modelo ARMA-GARCH para crypto
   model.crypto.spec = ugarchspec(variance.model = list(model = 'sGARCH' , garchOrder = c(1 , 1)),
                         mean.model = list(armaOrder = crypto_order, include.mean = TRUE, external.regressors = index_data), distribution.model = "sstd")
 
   (model.crypto.fit = ugarchfit(spec = model.crypto.spec , data = lagged, solver = 'hybrid'))
+
+  # usar os parametros do modelo para calcular os spillovers e fazer plot do gráfico
   params <- coef(model.crypto.fit)
   cond_vol_index <- params["mxreg2"]^2 * sigma(model.index.fit)[0:length(lagged)]^2
   cond_vol_crypto <- sigma(model.crypto.fit)^2
@@ -114,27 +109,32 @@ models_spillovers <- function(data, index_order, crypto_order, value_lagged) {
 }
 
 
-
+# modelos ARMA-GARCH com dummy variables
 models_spillovers_dummy <- function(data, index_order, crypto_order, value_lagged) {
+  # modelo ARMA-GARCH para indice
   model.index.spec = ugarchspec(variance.model = list(model = 'sGARCH' , garchOrder = c(1 , 1)) ,
                         mean.model = list(armaOrder = index_order, include.mean = TRUE), distribution.model = "sstd")
 
   (model.index.fit = ugarchfit(spec = model.index.spec , data = data$daily.returns, solver = 'hybrid'))
 
-
+  # ciração das dummies de acordo com o crash de março de 2020
   dummy_returns_simple <- ifelse(index(data$daily.returns) %in% seq(as.Date("2020-02-20"), as.Date("2020-04-07"), by="days"), 1, 0)
   dummy_residuals_simple <- ifelse(index(data$daily.returns) %in% seq(as.Date("2020-02-20"), as.Date("2020-04-07"), by="days"), 1, 0)
   dummy_returns <- dummy_returns_simple*data$daily.returns
   dummy_residuals <- dummy_residuals_simple*residuals(model.index.fit)
+
+  #junção dos dados com o lag dado por granger
   index_data <- merge(data$daily.returns, residuals(model.index.fit), dummy_returns, dummy_residuals)[0:(length(data$daily.returns)-value_lagged)]
 
   lagged <- data$daily.returns.1[(1+value_lagged):length(data$daily.returns.1)]
 
-
+  # modelo ARMA-GARCH para crypto com os dummies
   model.crypto.spec = ugarchspec(variance.model = list(model = 'sGARCH' , garchOrder = c(1 , 1)),
                         mean.model = list(armaOrder = crypto_order, include.mean = TRUE, external.regressors = index_data), distribution.model = "sstd")
 
   (model.crypto.fit = ugarchfit(spec = model.crypto.spec , data = lagged, solver = 'hybrid'))
+
+  #calculo dos spillovers usandos os coeficientes do modelo e criação de gráficos
   params <- coef(model.crypto.fit)
   cond_vol_index <- (params["mxreg2"]^2 + (dummy_residuals_simple*params["mxreg4"]^2))[0:length(lagged)] * sigma(model.index.fit)[0:length(lagged)]^2
   cond_vol_crypto <- sigma(model.crypto.fit)^2
@@ -147,7 +147,7 @@ models_spillovers_dummy <- function(data, index_order, crypto_order, value_lagge
 
 }
 
-
+# aplicação dos modelos
 models_spillovers(data = rDJI_rBTC, index_order = c(1,0,0), crypto_order = c(0,0,0), value_lagged = 4)
 models_spillovers(data = rDJI_rETH, index_order = c(1,0,0), crypto_order = c(0,0,0), value_lagged = 4)
 models_spillovers(data = rDJI_rXRP, index_order = c(1,0,0), crypto_order = c(0,0,0), value_lagged = 2)
