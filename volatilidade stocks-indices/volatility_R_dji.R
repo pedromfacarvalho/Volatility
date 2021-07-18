@@ -53,6 +53,7 @@ ret_HD <- dailyReturn(HD_adj, type = "log")
 ret_VZ <- dailyReturn(VZ_adj, type = "log")
 ret_INTC <- dailyReturn(INTC_adj, type = "log")
 
+data_price <- na.locf(na.locf(cbind(AAPL_adj, MSFT_adj, V_adj, JPM_adj, JNJ_adj, WMT_adj, UNH_adj, PG_adj, DIS_adj, HD_adj, VZ_adj, INTC_adj),fromLast = TRUE))
 # por os dados em matriz e fazer scaling
 data <- na.locf(na.locf(cbind(ret_AAPL, ret_MSFT, ret_V, ret_JPM, ret_JNJ, ret_WMT, ret_UNH, ret_PG, ret_DIS, ret_HD, ret_VZ, ret_INTC)*1000,fromLast = TRUE))
 colnames(data) <- c("ret_AAPL", "ret_MSFT", "ret_V", "ret_JPM", "ret_JNJ", "ret_WMT", "ret_UNH", "ret_PG", "ret_DIS", "ret_HD", "ret_VZ", "ret_INTC")
@@ -97,9 +98,9 @@ the_exog_variables[12,] <- c("ret_HD_3", "ret_HD", "ret_DIS")
 #models_garch_auto <- matrix(0,nrow = 12, ncol = 2)
 models_garch_auto <- list()
 for(i in 1:12) {
-  exog_var <- lag_data(data, i, lag = 1)
-  for(j in 2:7){
-    temp <- lag_data(data, i, lag = j)
+  exog_var <- lag_data(data_price, i, lag = 1)
+  for(j in 2:3){
+    temp <- lag_data(data_price, i, lag = j)
     temp_names <- colnames(temp)
     for(z in 1:11){
       temp_names[z] <- paste(temp_names[z],"_",toString(j),sep="")
@@ -107,10 +108,10 @@ for(i in 1:12) {
     colnames(temp) <- temp_names
     exog_var <- cbind(exog_var, temp)
   }
-  used_variables <- exog_var[,the_exog_variables[i,]]
-  temp <- auto.arima(data[,i],xreg = used_variables, stationary = TRUE, seasonal = TRUE)
+  #used_variables <- exog_var[,the_exog_variables[i,]]
+  temp <- auto.arima(data_price[,i], stationary = FALSE)
   temp
-  #print(temp)
+  print(i)
   models_garch_auto<-c(models_garch_auto,list(temp))
 }
 #models_garch <- vector(mode = "list", 12)
@@ -129,7 +130,7 @@ for(i in 1:12) {
 #vector de residuos
 resid_vec <- matrix(nrow = length(ret_AAPL), ncol = 12)
 for(i in 1:12){
-  resid_vec[,i] <- resid(models_garch_auto[[i]])
+  resid_vec[,i] <- dailyReturn(resid(models_garch_auto[[i]]), type = "arithmetic")
 }
 var(resid_vec)
 #dados de DJI
